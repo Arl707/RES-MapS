@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+
+    <style>
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; }
+#map { 
+            display: none; 
+            position: absolute; 
+            top: 0; 
+            bottom: 0; 
+            left: 0; 
+            right: 0; 
+        }
+        
+        .map-menu {
+            position: fixed;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+            background: #1CA9C9;
+            border-radius: 8px;
+            padding: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            z-index: 1000;
+        }
+        
+        .map-menu button {
+            padding: 8px 12px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.2s;
+            white-space: nowrap;
+        }
+        
+        .map-menu button:hover {
+            background: #45a049;
+        }
+        #welcomeScreen {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background-color: #56d1c9;
+        }
+        #welcomeScreen > * {
+            filter: none;
+            color: #333;
+            text-shadow: none;
+        }
+        
+        .welcome-box {
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+            max-width: 500px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .welcome-box:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+        }
+        
+        .welcome-message {
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+            line-height: 1.5;
+        }
+        
+        .welcome-features {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .feature-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.95rem;
+        }
+        
+        .feature-icon {
+            font-size: 1.2rem;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 18px;
+            border: none;
+            border-radius: 8px;
+            background-color: #4CAF50;
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+    </style>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RES-MapS</title>
+</head>
+<body>
+    
+    <div id="welcomeScreen">
+        <img src="C:\Users\Arl\Pictures\Screenshots\resmap.png" alt="RES-MapS logo" style="width: 200px; margin-bottom: 20px;">
+        <h1>RES-MapS</h1>
+        <div class="welcome-box">
+            <div class="welcome-content">
+                <p class="welcome-message">Welcome, help us chart a path to a more Greener and Sustainable World</p>
+                <div class="welcome-features">
+                    <div class="feature-item">
+                        <span class="feature-icon">🌱</span>
+                        <span>Explore sustainable solutions</span>
+                    </div>
+                    <div class="feature-item">
+                        <span class="feature-icon">🗺️</span>
+                        <span>Renewable energy mapping</span>
+                    </div>
+                    <div class="feature-item">
+                        <span class="feature-icon">🌍</span>
+                        <span>Contribute to a greener world</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <button onclick="startApp()">Let's Go</button>
+    </div>
+     
+    <div id="map">    
+        <div id="contributedData" style="display: none; padding: 20px; background-color: #f3f3f3; border: 1px solid #ccc; border-radius: 8px; margin: 20px;">
+            <h2>Contributed Data</h2>
+            <div id="contributionsList"></div>
+        </div>
+        <div class="map-menu">
+            <button onclick="showHome()">Home</button>
+            <button onclick="showAbout()">Crowdsourced Data</button>
+            <button onclick="showContact()">Contact Us</button>
+            <button onclick="showinspiration()">Test Drive</button>
+            <button onclick="showContribute()">Contribute</button>
+        </div>
+    </div>
+
+    <script>
+        function startApp() {
+            document.getElementById('welcomeScreen').style.display = 'none';
+            document.getElementById('map').style.display = 'block';
+            initMap();
+        }
+        
+        function showHome() {
+            document.getElementById('map').style.display = 'none';
+            document.getElementById('welcomeScreen').style.display = 'flex';
+        }
+        
+function showAbout() {
+    const submissions = JSON.parse(localStorage.getItem('contributions') || '[]');
+    const contributionsList = document.getElementById('contributionsList');
+    contributionsList.innerHTML = '';
+
+    if (submissions.length === 0) {
+        contributionsList.innerHTML = '<p>No submissions yet.</p>';
+        document.getElementById('contributedData').style.display = 'block';
+        return;
+    }
+
+    submissions.forEach((sub, index) => {
+        const subItem = document.createElement('div');
+        subItem.innerHTML = `<strong>${index + 1}.</strong> ${sub.text} (${new Date(sub.timestamp).toLocaleString()})`;
+        if (sub.files.photo) subItem.innerHTML += `<br>Photo: ${sub.files.photo}`;
+        if (sub.files.video) subItem.innerHTML += `<br>Video: ${sub.files.video}`;
+        if (sub.files.document) subItem.innerHTML += `<br>Document: ${sub.files.document}`;
+        contributionsList.appendChild(subItem);
+    });
+
+    document.getElementById('contributedData').style.display = 'block';
+}
+        
+        function showContact() {
+            alert('hambol daw ana ni abian');
+        }
+        function showinspiration () {
+            alert('J.S.Abian BsED Mathematics');
+        }
+        function showContribute(){
+            document.getElementById('contributeForm').style.display = 'block';
+            document.getElementById('map').style.display = 'none';
+        }
+
+        // store ang submissions sa dre na address
+        function storeSubmission(input, photoFile, videoFile, docFile) {
+            const submissions = JSON.parse(localStorage.getItem('contributions') || '[]');
+            const newSubmission = {
+                text: input,
+                timestamp: new Date().toISOString(),
+                files: {
+                    photo: photoFile ? photoFile.name : null,
+                    video: videoFile ? videoFile.name : null,
+                    document: docFile ? docFile.name : null
+                }
+            };
+            submissions.push(newSubmission);
+            localStorage.setItem('contributions', JSON.stringify(submissions));
+        }
+
+        function submitContribution() {
+            const input = document.getElementById('contributionInput').value;
+            if (!input) {
+                alert('Please enter your contribution');
+                return;
+            }
+
+            const photoFile = document.getElementById('photoUpload').files[0];
+            const videoFile = document.getElementById('videoUpload').files[0];
+            const docFile = document.getElementById('docUpload').files[0];
+            
+            // ability to store information sa localStorage
+            storeSubmission(input, photoFile, videoFile, docFile);
+            
+            let message = 'Thank you for your contribution: ' + input;
+            if (photoFile) message += '\nPhoto: ' + photoFile.name;
+            if (videoFile) message += '\nVideo: ' + videoFile.name;
+            if (docFile) message += '\nDocument: ' + docFile.name;
+            
+            alert(message);
+            
+            // Reset form dre
+            document.getElementById('contributionInput').value = '';
+            document.getElementById('addPhoto').checked = false;
+            document.getElementById('photoUpload').style.display = 'none';
+            document.getElementById('photoUpload').value = '';
+            document.getElementById('addVideo').checked = false;
+            document.getElementById('videoUpload').style.display = 'none';
+            document.getElementById('videoUpload').value = '';
+            document.getElementById('addDocument').checked = false;
+            document.getElementById('docUpload').style.display = 'none';
+            document.getElementById('docUpload').value = '';
+            
+            document.getElementById('contributeForm').style.display = 'none';
+            document.getElementById('map').style.display = 'block';
+        }
+
+        // Admin view function dre dapit (admin view kay e change into sa Crowdsourced Data na part)
+function showAbout() {
+    const submissions = JSON.parse(localStorage.getItem('contributions') || '[]');
+    if (submissions.length === 0) {
+        alert('No submissions yet');
+        return;
+    }
+    
+    let message = 'Recent Submissions:\n\n';
+    submissions.forEach((sub, index) => {
+        message += `${index + 1}. ${sub.text} (${new Date(sub.timestamp).toLocaleString()})\n`;
+        if (sub.files.photo) message += `   Photo: ${sub.files.photo}\n`;
+        if (sub.files.video) message += `   Video: ${sub.files.video}\n`;
+        if (sub.files.document) message += `   Document: ${sub.files.document}\n`;
+        message += '\n';
+    });
+    
+    alert(message);
+}
+
+        // dre ang overlays sali kaw
+
+        function initMap() {
+            var map = L.map('map').setView([8.9001, 125.5406], 10.7635522);
+
+            
+            var caragaLayer = L.tileLayer.wms("http://localhost:8080/geoserver/RES-MapS/wms", {
+                layers: "RES-MapS:ButuanCityHEHE",
+                format: "image/png",
+                transparent: false, 
+                attribution: "&copy; GeoServer"
+            }).addTo(map);
+
+            
+            var municipalities = L.tileLayer.wms("http://localhost:8080/geoserver/RES-MapS/wms", {
+                layers: "RES-MapS:Caraga_Municipalities",
+                format: "image/png",
+                transparent: true,
+                attribution: "&copy; GeoServer"
+            });
+
+            var butuandem = L.tileLayer.wms("http://localhost:8080/geoserver/RES-MapS/wms", {
+                layers: "RES-MapS:Elevdata-Terrain",
+                format: "image/png",
+                transparent: true,
+                attribution: "&copy; GeoServer"
+            });
+
+            var butuanproper = L.tileLayer.wms("http://localhost:8080/geoserver/RES-MapS/wms", {
+                layers: "RES-MapS:ButuanProper",
+                format: "image/png",
+                transparent: true,
+                attribution: "&copy; GeoServer"
+            });
+
+            var hydrobutuan = L.tileLayer.wms("http://localhost:8080/geoserver/RES-MapS/wms", {
+                layers: "RES-MapS:ButuanHydro",
+                format: "image/png",
+                transparent: true,
+                attribution: "&copy; Geoserver"
+            });
+            var windmap = L.tileLayer.wms("http://localhost:8080/geoserver/RES-MapS/wms", {
+                layers: "RES-MapS:WindMapButuan",
+                format: "image/png",
+                transparent: true,
+                attribution: "&copy; Geoserver"
+            });
+            var solarmap = L.tileLayer.wms("http://localhost:8080/geoserver/RES-MapS/wms", {
+                layers: "RES-MapS:Pvoutfinal",
+                format: "image/png",
+                transparent: true,
+                attribution: "&copy; Geoserver"
+            });
+
+            var overlayMaps = {
+                "Municipalities": municipalities,
+                "Terrain": butuandem,
+                "Open Street View": butuanproper,
+                "Hydrography": hydrobutuan,
+                "Wind Map": windmap, 
+                "Solar Map (PV output)": solarmap,
+            };
+
+            
+            L.control.layers(null, overlayMaps).addTo(map);
+
+            // Show popup with info when overlay layer is added
+            var layerInfo = {
+                "Municipalities": "This layer shows the municipalities in the Caraga region.",
+                "Terrain": "This layer displays the terrain of Butuan City",
+                "Open Street View": "This layer shows the open street view of Butuan.",
+                "Hydrography": "This layer displays hydrography features such as rivers and lakes."
+            };
+
+            map.on('overlayadd', function(e) {
+                var info = layerInfo[e.name];
+                if (info) {
+                    alert("Layer Info: " + info);
+                }
+            });
+
+            // Add click event to add marker with popup input
+            map.on('click', function(e) {
+                // Prevent marker placement if clicking on controls or overlays
+                var target = e.originalEvent.target;
+                if (target.closest('.map-menu') || target.closest('.leaflet-control-container')) {
+                    return;
+                }
+                var marker = L.marker(e.latlng).addTo(map);
+                var description = prompt("Enter a description for this marker:");
+                if (description) {
+                    marker.bindPopup(description).openPopup();
+                }
+                // Add right-click event to remove marker
+                marker.on('contextmenu', function() {
+                    map.removeLayer(marker);
+                });
+            });
+        }
+    </script>
+    <div id="contributeForm" style="display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(103, 218, 96, 0.9); flex-direction: column; justify-content: center; align-items: center; z-index: 1000;">
+        <div class="welcome-box" style="width: 80%; max-width: 500px;">
+            <h2 style="margin-top: 0; color: #333;">Contribute Data</h2>
+            <p style="margin-bottom: 20px; color: #555;">Help us chart a path to a more Greener and Sustainable World</p>
+            <p style="margin-bottom: 20px; color: #555;">RES-MapS relies on Crowdsourced data other than the initial ones that are used at the time of development</p>
+            <p style="margin-bottom: 20px; color: #555;">Please submit your data and suggestions. Best Regards from Arl</p>
+            <textarea id="contributionInput" style="width: 100%; height: 100px; padding: 10px; margin-bottom: 15px; border: 1px solid #1b1717; border-radius: 4px; font-family: inherit;"></textarea>
+            
+            <div style="margin-bottom: 15px;">
+                <p style="margin-bottom: 8px; color: #555;">Add supporting media (highly encouraged):</p>
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <div>
+                        <label style="display: block; margin-bottom: 5px; color: #555;">
+                            <input type="checkbox" id="addPhoto"> Photo
+                        </label>
+                        <input type="file" id="photoUpload" accept="image/*" style="display: none; width: 100%;">
+                    </div>
+                    <div>
+                        <label style="display: block; margin-bottom: 5px; color: #555;">
+                            <input type="checkbox" id="addVideo"> Video
+                        </label>
+                        <input type="file" id="videoUpload" accept="video/*" style="display: none; width: 100%;">
+                    </div>
+                    <div>
+                        <label style="display: block; margin-bottom: 5px; color: #555;">
+                            <input type="checkbox" id="addDocument"> Document
+                        </label>
+                        <input type="file" id="docUpload" accept=".pdf,.doc,.docx" style="display: none; width: 100%;">
+                    </div>
+                </div>
+            </div>
+            
+            <div style="display: flex; gap: 10px;">
+                <button onclick="submitContribution()" style="flex: 1;">Submit</button>
+                <button onclick="document.getElementById('contributeForm').style.display = 'none'; document.getElementById('map').style.display = 'block';" style="flex: 1; background: #f44336;">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('addPhoto').addEventListener('change', function() {
+            document.getElementById('photoUpload').style.display = this.checked ? 'block' : 'none';
+        });
+        document.getElementById('addVideo').addEventListener('change', function() {
+            document.getElementById('videoUpload').style.display = this.checked ? 'block' : 'none';
+        });
+        document.getElementById('addDocument').addEventListener('change', function() {
+            document.getElementById('docUpload').style.display = this.checked ? 'block' : 'none';
+        });
+    </script>
+</body>
+</html>
